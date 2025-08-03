@@ -1,0 +1,6 @@
+--- a/components/PlayerCard.tsx
++++ b/components/PlayerCard.tsx
+@@ function PlayerCard
+- const teamLogoUrl = `/logos/${props.team.toLowerCase()}.png`
++ const teamCode = props.team?.toLowerCase() || 'default'
++ const teamLogoUrl = `/logos/${teamCode}.png`

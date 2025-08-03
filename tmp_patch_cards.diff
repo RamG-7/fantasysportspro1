@@ -1,0 +1,13 @@
+--- a/components/PlayerCard.tsx
++++ b/components/PlayerCard.tsx
+@@ export default function PlayerCard
+-  return (
+-    <button onClick={props.onClick} style={{ textAlign:'left', width:'100%' }}>
++  return (
++    <div style={{
++      background: 'linear-gradient(180deg, rgba(36,43,63,0.96) 0%, rgba(23,29,47,0.96) 100%)',
++      border: '1px solid rgba(255,255,255,0.1)',
++      borderRadius: 16,
++      overflow: 'hidden'
++    }}>
++    <button onClick={props.onClick} style={{ textAlign:'left', width:'100%', background: 'transparent' }}>
