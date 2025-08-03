@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { --bg:#0b1020; --panel:#141a2a; --text:#e8ecf7; --muted:#9aa4bf; --good:#2dd4bf; --warn:#fbbf24; --bad:#f87171; --accent:#2b86ff; }
+html,body{ height:100%; background: radial-gradient(1200px 700px at 20% -10%, rgba(43,134,255,0.35), transparent 60%), radial-gradient(1000px 600px at 110% 10%, rgba(45,212,191,0.15), transparent 60%), var(--bg); color:var(--text); }
+.card{ background:linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)); border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,0.35); }
+input, textarea { color: var(--text); }
