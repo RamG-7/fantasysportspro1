@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { analyzeRoster, DEFAULT_SETTINGS, type Dataset } from '../lib/analyzer'
-import PlayerCard from '../components/PlayerCard'
-import Typeahead from '../components/Typeahead'
-import { gradeColor } from '../lib/grades'
+import { analyzeRoster, DEFAULT_SETTINGS, type Dataset } from '@/lib/analyzer'
+import PlayerCard from '@/components/PlayerCard'
+import Typeahead from '@/components/Typeahead'
+import { gradeColor } from '@/lib/grades'
 
 type ImportTeam = {
   roster_id: number

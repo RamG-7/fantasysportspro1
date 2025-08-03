@@ -54,3 +54,12 @@ export const teamLogos: Record<string, string> = {
   'JAC': 'https://upload.wikimedia.org/wikipedia/en/7/74/Jacksonville_Jaguars_logo.svg', // JAX alternative
   'WSH': 'https://upload.wikimedia.org/wikipedia/commons/0/0c/Washington_Commanders_logo.svg', // Washington alternative
 };
+
+export const playerHeadshots: Record<string, string> = {
+  'patrick mahomes': 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/12/Patrick_Mahomes_2023.jpg/128px-Patrick_Mahomes_2023.jpg',
+  'justin jefferson': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/fa/Justin_Jefferson_2022.jpg/128px-Justin_Jefferson_2022.jpg',
+  'christian mccaffrey': 'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e8/Christian_McCaffrey_2019.jpg/128px-Christian_McCaffrey_2019.jpg',
+  'puka nacua': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Puka_Nacua_2023.jpg/128px-Puka_Nacua_2023.jpg',
+  'travis kelce': 'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Travis_Kelce_Super_Bowl_LVII_Victory_Parade_%28cropped%29.jpg/128px-Travis_Kelce_Super_Bowl_LVII_Victory_Parade_%28cropped%29.jpg',
+  'justin tucker': 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Justin_Tucker_2018_%28cropped%29.jpg/128px-Justin_Tucker_2018_%28cropped%29.jpg'
+}

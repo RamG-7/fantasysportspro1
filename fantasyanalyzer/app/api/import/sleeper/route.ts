@@ -18,7 +18,7 @@ export async function GET(req: Request){
     const rosters = await rostersRes.json()
     const userById = new Map(users.map((u:any)=>[u.user_id, u]))
     const teams = rosters.map((r:any)=>{
-      const u = userById.get(r.owner_id) || {}
+      const u = userById.get(r.owner_id) || {} as any
       const ownerName = u.display_name || (u.username || 'Unknown')
       const starters: string[] = Array.isArray(r.starters) ? r.starters.filter((id:any)=> typeof id === 'string') : []
       const players: string[] = Array.isArray(r.players) ? r.players.filter((id:any)=> typeof id === 'string') : []
