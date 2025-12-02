@@ -79,9 +79,9 @@ Please provide an extremely detailed player analysis in this exact JSON format:
     "Specific weakness 3 with detailed reasoning"
   ],
   "recommendations": [
-    "Specific actionable recommendation 1 with detailed reasoning",
-    "Specific actionable recommendation 2 with detailed reasoning",
-    "Specific actionable recommendation 3 with detailed reasoning"
+    "Specific actionable recommendation 1 with detailed reasoning (focus on lineup/start decisions)",
+    "Specific actionable recommendation 2 with detailed reasoning (focus on trade/acquisition strategy)",
+    "Specific actionable recommendation 3 with detailed reasoning (focus on monitoring/risk management)"
   ],
   "weeklyOutlook": "Specific weekly floor and ceiling expectations with detailed reasoning for the numbers provided",
   "tradeValue": "Specific trade value assessment with actual player comparisons and detailed reasoning",
@@ -98,6 +98,14 @@ ANALYSIS REQUIREMENTS:
 - Consider ADP value, current market value, and trade scenarios
 - Provide specific weekly expectations with detailed reasoning
 - Include specific risk factors and monitoring advice
+
+RECOMMENDATIONS REQUIREMENTS (CRITICAL):
+- The 3 recommendations MUST be DISTINCT and cover DIFFERENT aspects of roster management
+- Recommendation 1: Focus on LINEUP DECISIONS (when to start/bench, matchup considerations, weekly usage)
+- Recommendation 2: Focus on TRADE/ACQUISITION STRATEGY (trade value, who to target, when to buy/sell)
+- Recommendation 3: Focus on MONITORING/RISK MANAGEMENT (what to watch for, warning signs, long-term outlook)
+- DO NOT repeat similar advice across recommendations - each must address a unique decision-making area
+- Ensure each recommendation provides actionable, specific guidance that doesn't overlap with the others
 
 MAKE THE ANALYSIS:
 - Extremely detailed and specific to this player
@@ -168,6 +176,9 @@ export async function analyzeTeamWithGemini(rosterPlayers: string[], dataset: an
 ROSTER:
 ${playerDetails.map(p => `- ${p.name} (${p.position}, ${p.team}, ADP: ${p.adp || 'Undrafted'}, Proj PPG: ${p.proj_ppg?.toFixed(1) || 'N/A'})`).join('\n')}
 
+AVAILABLE PLAYERS FOR TRADE TARGETS:
+${dataset.players.filter((p: any) => p.proj_ppg >= 8).sort((a: any, b: any) => b.proj_ppg - a.proj_ppg).slice(0, 20).map(p => `- ${p.name} (${p.position}, ${p.team}, Proj PPG: ${p.proj_ppg?.toFixed(1)})`).join('\n')}
+
 Please provide a detailed team analysis in this exact JSON format:
 
 {
@@ -183,9 +194,9 @@ Please provide a detailed team analysis in this exact JSON format:
   "benchDepth": 0,
   "weakestPosition": "FLEX",
   "tradeRecommendations": [
-    "Trade [Player A] for [Player B] - [specific reasoning about why this trade improves the team]",
-    "Target [specific player name] to address [specific weakness] - [detailed reasoning]",
-    "Consider trading [overvalued player] for [undervalued player] to improve [specific position]"
+    "Trade [specific player from roster] for [specific available player] - [specific reasoning about why this trade improves the team]",
+    "Target [specific available player name] to address [specific weakness] - [detailed reasoning]",
+    "Consider trading [specific overvalued player from roster] for [specific undervalued available player] to improve [specific position]"
   ],
   "teamStrengths": [
     "Key team strength 1",
@@ -204,7 +215,7 @@ ANALYSIS REQUIREMENTS:
 - Calculate realistic team PPG based on player projections
 - Assess team grade (A+ to F) based on overall roster quality
 - Identify weakest position that needs upgrading
-- Provide SPECIFIC trade recommendations with actual player names and detailed reasoning
+- Provide SPECIFIC trade recommendations using ONLY players from the roster and available players list
 - Analyze what positions you have too much of vs. what you're missing
 - Identify specific players to target in trades with clear reasoning
 - Suggest trades that address specific roster weaknesses
@@ -214,12 +225,21 @@ ANALYSIS REQUIREMENTS:
 - Provide actionable improvement strategy with specific targets
 - Consider team construction, bye weeks, and roster balance
 
-TRADE RECOMMENDATIONS SHOULD BE:
-- Specific with actual player names
-- Address clear roster weaknesses
-- Explain why each trade improves the team
+TRADE RECOMMENDATIONS MUST:
+- Use ONLY actual player names from the roster and available players list
+- Address clear roster weaknesses with specific reasoning
+- Explain why each trade improves the team with detailed analysis
 - Consider ADP value and current market value
 - Focus on positions of need vs. positions of strength
+- Include specific player names from both the roster and available players
+- Provide detailed reasoning for why each trade makes sense
+- CRITICAL: Each of the 3 trade recommendations must target a DIFFERENT player - do not repeat the same target player across multiple recommendations
+- Ensure each recommendation addresses a different aspect: (1) critical position need, (2) roster upgrade opportunity, (3) depth improvement
+- CRITICAL: Only reference players that ACTUALLY EXIST in the roster - do not use placeholder text like "your RB2" or "your WR3" if those players don't exist
+- If the roster is missing players at a position, suggest acquiring them via free agency or package trades rather than referencing non-existent players
+- Make logical recommendations based on the actual roster composition - if there are only 3 players, don't suggest trading "your RB2" if there is no RB2
+- NEVER suggest trading draft picks - fantasy football trades are player-for-player only (or player packages for players). Draft picks are only relevant during the draft, not during the season
+- Package trades should involve multiple actual players (e.g., "Player A + Player B for Player C"), never draft picks or future considerations
 
 Make the analysis extremely detailed and actionable for fantasy football decision-making. Focus on specific players to target and clear reasoning for each recommendation.`
 
@@ -670,31 +690,45 @@ function getFallbackTeamAnalysis(rosterPlayers: string[], dataset: any): TeamAna
   const sortedWRs = wrs.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
   const sortedTEs = tes.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
 
+  // Find specific players to target based on available players in dataset
+  const findTradeTargets = (position: string, minPPG: number) => {
+    return dataset.players
+      .filter((p: any) => p.position === position && p.proj_ppg >= minPPG)
+      .sort((a: any, b: any) => b.proj_ppg - a.proj_ppg)
+      .slice(0, 3)
+      .map((p: any) => p.name)
+  }
+
   if (percentAboveAverage > 10) {
     // Strong team - focus on depth and upside
     if (rbCount > 4 && wrCount < 3) {
+      const wrTargets = findTradeTargets('WR', 12)
       tradeRecommendations = [
-        `Trade ${sortedRBs[3]?.name || 'a backup RB'} for Stefon Diggs to improve WR depth`,
-        `Target Tyreek Hill for ${sortedRBs[2]?.name || 'your RB3'} - WR scarcity is more valuable`,
-        `Consider trading ${sortedRBs[1]?.name || 'your RB2'} for Davante Adams - elite WR upgrade`
+        `Trade ${sortedRBs[3]?.name || 'your RB4'} for ${wrTargets[0] || 'Stefon Diggs'} to improve WR depth`,
+        `Target ${wrTargets[1] || 'Tyreek Hill'} for ${sortedRBs[2]?.name || 'your RB3'} - WR scarcity is more valuable`,
+        `Consider trading ${sortedRBs[1]?.name || 'your RB2'} for ${wrTargets[2] || 'Davante Adams'} - elite WR upgrade`
       ]
     } else if (wrCount > 4 && rbCount < 3) {
+      const rbTargets = findTradeTargets('RB', 12)
       tradeRecommendations = [
-        `Trade ${sortedWRs[3]?.name || 'a backup WR'} for Saquon Barkley to improve RB depth`,
-        `Target Christian McCaffrey for ${sortedWRs[2]?.name || 'your WR3'} - RB scarcity wins`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for Jonathan Taylor - elite RB upgrade`
+        `Trade ${sortedWRs[3]?.name || 'your WR4'} for ${rbTargets[0] || 'Saquon Barkley'} to improve RB depth`,
+        `Target ${rbTargets[1] || 'Christian McCaffrey'} for ${sortedWRs[2]?.name || 'your WR3'} - RB scarcity wins`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${rbTargets[2] || 'Jonathan Taylor'} - elite RB upgrade`
       ]
     } else if (teCount === 0 || (sortedTEs[0]?.proj_ppg || 0) < 8) {
+      const teTargets = findTradeTargets('TE', 8)
       tradeRecommendations = [
-        `Trade ${sortedWRs[2]?.name || 'a backup WR'} for Travis Kelce to dominate TE position`,
-        `Target Mark Andrews for ${sortedRBs[2]?.name || 'your RB3'} - TE upgrade needed`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for George Kittle - elite TE upgrade`
+        `Trade ${sortedWRs[2]?.name || 'your WR3'} for ${teTargets[0] || 'Travis Kelce'} to dominate TE position`,
+        `Target ${teTargets[1] || 'Mark Andrews'} for ${sortedRBs[2]?.name || 'your RB3'} - TE upgrade needed`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${teTargets[2] || 'George Kittle'} - elite TE upgrade`
       ]
     } else {
+      const wrTargets = findTradeTargets('WR', 10)
+      const rbTargets = findTradeTargets('RB', 10)
       tradeRecommendations = [
-        `Trade ${sortedRBs[2]?.name || 'a backup RB'} for Tyreek Hill to improve WR depth`,
-        `Target Breece Hall for ${sortedWRs[2]?.name || 'your WR3'} - undervalued RB upgrade`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for Austin Ekeler - RB depth improvement`
+        `Trade ${sortedRBs[2]?.name || 'your RB3'} for ${wrTargets[0] || 'Tyreek Hill'} to improve WR depth`,
+        `Target ${rbTargets[0] || 'Breece Hall'} for ${sortedWRs[2]?.name || 'your WR3'} - undervalued RB upgrade`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${rbTargets[1] || 'Austin Ekeler'} - RB depth improvement`
       ]
     }
     teamStrengths = ['Elite team PPG', 'Strong positional balance', 'Excellent star power']
@@ -703,58 +737,69 @@ function getFallbackTeamAnalysis(rosterPlayers: string[], dataset: any): TeamAna
   } else if (percentAboveAverage > 5) {
     // Good team - target specific upgrades
     if (rbCount < 2) {
+      const rbTargets = findTradeTargets('RB', 10)
       tradeRecommendations = [
-        `Trade ${sortedWRs[1]?.name || 'your WR2'} for Saquon Barkley to upgrade RB2 position`,
-        `Target Derrick Henry for ${sortedWRs[2]?.name || 'your WR3'} - RB depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Nick Chubb - RB upgrade needed`
+        `Trade ${sortedWRs[1]?.name || 'your WR2'} for ${rbTargets[0] || 'Saquon Barkley'} to upgrade RB2 position`,
+        `Target ${rbTargets[1] || 'Derrick Henry'} for ${sortedWRs[2]?.name || 'your WR3'} - RB depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${rbTargets[2] || 'Nick Chubb'} - RB upgrade needed`
       ]
     } else if (wrCount < 2) {
+      const wrTargets = findTradeTargets('WR', 10)
       tradeRecommendations = [
-        `Trade ${sortedRBs[1]?.name || 'your RB2'} for Stefon Diggs to upgrade WR2 position`,
-        `Target Cooper Kupp for ${sortedRBs[2]?.name || 'your RB3'} - WR depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for CeeDee Lamb - WR upgrade needed`
+        `Trade ${sortedRBs[1]?.name || 'your RB2'} for ${wrTargets[0] || 'Stefon Diggs'} to upgrade WR2 position`,
+        `Target ${wrTargets[1] || 'Cooper Kupp'} for ${sortedRBs[2]?.name || 'your RB3'} - WR depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${wrTargets[2] || 'CeeDee Lamb'} - WR upgrade needed`
       ]
     } else if (teCount === 0 || (sortedTEs[0]?.proj_ppg || 0) < 6) {
+      const teTargets = findTradeTargets('TE', 6)
       tradeRecommendations = [
-        `Trade ${sortedWRs[2]?.name || 'your WR3'} for Travis Kelce to dominate TE position`,
-        `Target Mark Andrews for ${sortedRBs[2]?.name || 'your RB3'} - TE upgrade needed`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for George Kittle - elite TE upgrade`
+        `Trade ${sortedWRs[2]?.name || 'your WR3'} for ${teTargets[0] || 'Travis Kelce'} to dominate TE position`,
+        `Target ${teTargets[1] || 'Mark Andrews'} for ${sortedRBs[2]?.name || 'your RB3'} - TE upgrade needed`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${teTargets[2] || 'George Kittle'} - elite TE upgrade`
       ]
-    } else {
-      tradeRecommendations = [
-        `Trade ${sortedWRs[2]?.name || 'your WR3'} for Saquon Barkley to upgrade RB2 position`,
-        `Target Stefon Diggs for ${sortedRBs[2]?.name || 'your RB3'} - WR depth improvement`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Travis Kelce to dominate TE position`
-      ]
-    }
+          } else {
+        const rbTargets = findTradeTargets('RB', 8)
+        const wrTargets = findTradeTargets('WR', 8)
+        const teTargets = findTradeTargets('TE', 6)
+        tradeRecommendations = [
+          `Trade ${sortedWRs[2]?.name || 'your WR3'} for ${rbTargets[0] || 'Saquon Barkley'} to upgrade RB2 position`,
+          `Target ${wrTargets[0] || 'Stefon Diggs'} for ${sortedRBs[2]?.name || 'your RB3'} - WR depth improvement`,
+          `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${teTargets[0] || 'Travis Kelce'} to dominate TE position`
+        ]
+      }
     teamStrengths = ['Good team PPG', 'Solid positional advantages', 'Strong starting lineup']
     teamWeaknesses = ['Bench depth needs work', 'Some position scarcity', 'Limited trade flexibility']
     improvementStrategy = 'Target specific position upgrades and build bench depth for consistency.'
   } else if (percentAboveAverage > 0) {
     // Average team - need strategic improvements
     if (rbCount < 2) {
+      const rbTargets = findTradeTargets('RB', 12)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Christian McCaffrey to boost RB1 production`,
-        `Target Austin Ekeler for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Derrick Henry - RB upgrade needed`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${rbTargets[0] || 'Christian McCaffrey'} to boost RB1 production`,
+        `Target ${rbTargets[1] || 'Austin Ekeler'} for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${rbTargets[2] || 'Derrick Henry'} - RB upgrade needed`
       ]
     } else if (wrCount < 2) {
+      const wrTargets = findTradeTargets('WR', 12)
       tradeRecommendations = [
-        `Trade ${sortedRBs[0]?.name || 'your RB1'} for Davante Adams to upgrade WR1 position`,
-        `Target CeeDee Lamb for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Stefon Diggs - WR upgrade needed`
+        `Trade ${sortedRBs[0]?.name || 'your RB1'} for ${wrTargets[0] || 'Davante Adams'} to upgrade WR1 position`,
+        `Target ${wrTargets[1] || 'CeeDee Lamb'} for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${wrTargets[2] || 'Stefon Diggs'} - WR upgrade needed`
       ]
     } else if (teCount === 0 || (sortedTEs[0]?.proj_ppg || 0) < 5) {
+      const teTargets = findTradeTargets('TE', 5)
       tradeRecommendations = [
-        `Trade ${sortedWRs[1]?.name || 'your WR2'} for Travis Kelce to upgrade TE position`,
-        `Target Mark Andrews for ${sortedRBs[1]?.name || 'your RB2'} - TE upgrade needed`,
-        `Consider trading ${sortedWRs[0]?.name || 'your WR1'} for George Kittle - elite TE upgrade`
+        `Trade ${sortedWRs[1]?.name || 'your WR2'} for ${teTargets[0] || 'Travis Kelce'} to upgrade TE position`,
+        `Target ${teTargets[1] || 'Mark Andrews'} for ${sortedRBs[1]?.name || 'your RB2'} - TE upgrade needed`,
+        `Consider trading ${sortedWRs[0]?.name || 'your WR1'} for ${teTargets[2] || 'George Kittle'} - elite TE upgrade`
       ]
     } else {
+      const rbTargets = findTradeTargets('RB', 10)
+      const wrTargets = findTradeTargets('WR', 10)
       tradeRecommendations = [
-        `Trade ${sortedWRs[1]?.name || 'your WR2'} for Christian McCaffrey to boost RB1 production`,
-        `Target Davante Adams for ${sortedRBs[1]?.name || 'your RB2'} - WR1 upgrade needed`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Josh Allen to improve QB position`
+        `Trade ${sortedWRs[1]?.name || 'your WR2'} for ${rbTargets[0] || 'Christian McCaffrey'} to boost RB1 production`,
+        `Target ${wrTargets[0] || 'Davante Adams'} for ${sortedRBs[1]?.name || 'your RB2'} - WR1 upgrade needed`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${findTradeTargets('QB', 18)[0] || 'Josh Allen'} to improve QB position`
       ]
     }
     teamStrengths = ['Average team PPG', 'Balanced roster', 'Some upside potential']
@@ -763,28 +808,33 @@ function getFallbackTeamAnalysis(rosterPlayers: string[], dataset: any): TeamAna
   } else if (percentAboveAverage > -5) {
     // Below average - need major improvements
     if (rbCount < 2) {
+      const rbTargets = findTradeTargets('RB', 10)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Austin Ekeler to improve RB production`,
-        `Target Derrick Henry for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Saquon Barkley - RB upgrade needed`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${rbTargets[0] || 'Austin Ekeler'} to improve RB production`,
+        `Target ${rbTargets[1] || 'Derrick Henry'} for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${rbTargets[2] || 'Saquon Barkley'} - RB upgrade needed`
       ]
     } else if (wrCount < 2) {
+      const wrTargets = findTradeTargets('WR', 10)
       tradeRecommendations = [
-        `Trade ${sortedRBs[0]?.name || 'your RB1'} for Cooper Kupp to upgrade WR1 position`,
-        `Target Stefon Diggs for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Davante Adams - WR upgrade needed`
+        `Trade ${sortedRBs[0]?.name || 'your RB1'} for ${wrTargets[0] || 'Cooper Kupp'} to upgrade WR1 position`,
+        `Target ${wrTargets[1] || 'Stefon Diggs'} for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${wrTargets[2] || 'Davante Adams'} - WR upgrade needed`
       ]
     } else if (teCount === 0 || (sortedTEs[0]?.proj_ppg || 0) < 4) {
+      const teTargets = findTradeTargets('TE', 4)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Travis Kelce to upgrade TE position`,
-        `Target Mark Andrews for ${sortedRBs[0]?.name || 'your RB1'} - TE upgrade needed`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for George Kittle - elite TE upgrade`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${teTargets[0] || 'Travis Kelce'} to upgrade TE position`,
+        `Target ${teTargets[1] || 'Mark Andrews'} for ${sortedRBs[0]?.name || 'your RB1'} - TE upgrade needed`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${teTargets[2] || 'George Kittle'} - elite TE upgrade`
       ]
     } else {
+      const rbTargets = findTradeTargets('RB', 8)
+      const wrTargets = findTradeTargets('WR', 8)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Austin Ekeler to improve RB production`,
-        `Target Cooper Kupp for ${sortedRBs[0]?.name || 'your RB1'} - WR1 upgrade needed`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Patrick Mahomes to boost QB scoring`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${rbTargets[0] || 'Austin Ekeler'} to improve RB production`,
+        `Target ${wrTargets[0] || 'Cooper Kupp'} for ${sortedRBs[0]?.name || 'your RB1'} - WR1 upgrade needed`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${findTradeTargets('QB', 16)[0] || 'Patrick Mahomes'} to boost QB scoring`
       ]
     }
     teamStrengths = ['Some upside potential', 'Balanced approach', 'Trade flexibility']
@@ -793,28 +843,33 @@ function getFallbackTeamAnalysis(rosterPlayers: string[], dataset: any): TeamAna
   } else {
     // Poor team - need complete overhaul
     if (rbCount < 2) {
+      const rbTargets = findTradeTargets('RB', 8)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Derrick Henry to establish RB foundation`,
-        `Target Saquon Barkley for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Christian McCaffrey - RB upgrade needed`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${rbTargets[0] || 'Derrick Henry'} to establish RB foundation`,
+        `Target ${rbTargets[1] || 'Saquon Barkley'} for ${sortedWRs[1]?.name || 'your WR2'} - RB depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${rbTargets[2] || 'Christian McCaffrey'} - RB upgrade needed`
       ]
     } else if (wrCount < 2) {
+      const wrTargets = findTradeTargets('WR', 8)
       tradeRecommendations = [
-        `Trade ${sortedRBs[0]?.name || 'your RB1'} for Ja'Marr Chase to upgrade WR1 position`,
-        `Target Stefon Diggs for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Davante Adams - WR upgrade needed`
+        `Trade ${sortedRBs[0]?.name || 'your RB1'} for ${wrTargets[0] || 'Ja\'Marr Chase'} to upgrade WR1 position`,
+        `Target ${wrTargets[1] || 'Stefon Diggs'} for ${sortedRBs[1]?.name || 'your RB2'} - WR depth critical`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${wrTargets[2] || 'Davante Adams'} - WR upgrade needed`
       ]
     } else if (teCount === 0 || (sortedTEs[0]?.proj_ppg || 0) < 3) {
+      const teTargets = findTradeTargets('TE', 3)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Travis Kelce to upgrade TE position`,
-        `Target Mark Andrews for ${sortedRBs[0]?.name || 'your RB1'} - TE upgrade needed`,
-        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for George Kittle - elite TE upgrade`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${teTargets[0] || 'Travis Kelce'} to upgrade TE position`,
+        `Target ${teTargets[1] || 'Mark Andrews'} for ${sortedRBs[0]?.name || 'your RB1'} - TE upgrade needed`,
+        `Consider trading ${sortedWRs[1]?.name || 'your WR2'} for ${teTargets[2] || 'George Kittle'} - elite TE upgrade`
       ]
     } else {
+      const rbTargets = findTradeTargets('RB', 6)
+      const wrTargets = findTradeTargets('WR', 6)
       tradeRecommendations = [
-        `Trade ${sortedWRs[0]?.name || 'your WR1'} for Derrick Henry to establish RB foundation`,
-        `Target Ja'Marr Chase for ${sortedRBs[0]?.name || 'your RB1'} - WR1 upgrade needed`,
-        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for Lamar Jackson to improve QB production`
+        `Trade ${sortedWRs[0]?.name || 'your WR1'} for ${rbTargets[0] || 'Derrick Henry'} to establish RB foundation`,
+        `Target ${wrTargets[0] || 'Ja\'Marr Chase'} for ${sortedRBs[0]?.name || 'your RB1'} - WR1 upgrade needed`,
+        `Consider trading ${sortedTEs[0]?.name || 'your TE'} for ${findTradeTargets('QB', 14)[0] || 'Lamar Jackson'} to improve QB production`
       ]
     }
     teamStrengths = ['Trade flexibility', 'Rebuild opportunity', 'High upside potential']

@@ -85,7 +85,7 @@ function TradeSuggestion({ trade }: { trade: any }) {
         Your weakest starter: <strong style={{ color: 'var(--text-primary)' }}>{trade.slot}</strong>
       </div>
       <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-        Consider these upgrades at the same position:
+        Consider these upgrades for your team:
       </div>
       <div style={{ display: 'grid', gap: 8 }}>
         {trade.targets.map((opt: any) => (
@@ -970,16 +970,7 @@ export default function Page() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const [rosterPlayers, setRosterPlayers] = useState<string[]>([
-    'Patrick Mahomes',
-    'Christian McCaffrey',
-    'Jahmyr Gibbs',
-    'Justin Jefferson',
-    'Puka Nacua',
-    'Travis Kelce',
-    'Justin Tucker',
-    'Cowboys D/ST',
-  ])
+  const [rosterPlayers, setRosterPlayers] = useState<string[]>([])
   const [showDetail, setShowDetail] = useState(false)
 
   // Sleeper import controls
@@ -1149,27 +1140,743 @@ export default function Page() {
 
   // Team Summary Component
   const TeamSummary = () => {
-    // Create fallback data when API fails
-    const fallbackAnalysis = {
-      teamPPG: 85.2,
-      leagueAverage: 82.1,
-      overallGrade: 'B+',
-      projectedRecord: '10-4',
-      playoffOdds: '75%',
-      percentAboveAverage: 3.8,
-      positionalAdvantages: '8/12',
-      starPlayers: '6',
-      benchDepth: '4',
-      weakestPosition: 'WR3',
-      tradeRecommendations: [
-        'Target a high-end WR2 like DK Metcalf or Tee Higgins',
-        'Consider trading depth for a reliable Flex option like David Montgomery',
-        'Look for undervalued players with high upside in later rounds'
-      ],
-      improvementStrategy: 'Focus on acquiring star players with lower ADPs and improving bench depth through strategic trades.'
+    // Calculate dynamic metrics based on actual roster
+    const calculateDynamicMetrics = () => {
+      if (!dataset || rosterPlayers.length === 0) {
+        return {
+          teamPPG: 0,
+          leagueAverage: 82.1,
+          overallGrade: 'C',
+          projectedRecord: '0-0',
+          playoffOdds: '0%',
+          percentAboveAverage: 0,
+          positionalAdvantages: '0/0',
+          starPlayers: 0,
+          benchDepth: 0,
+          weakestPosition: 'N/A',
+          tradeRecommendations: [],
+          improvementStrategy: 'Add players to your roster to get analysis.'
+        }
+      }
+      
+      // Require minimum 6 players for meaningful trade recommendations
+      if (rosterPlayers.length < 6) {
+        const teamPPG = rosterPlayers.reduce((sum, name) => {
+          const player = dataset.players.find((p: any) => p.name === name)
+          return sum + (player?.proj_ppg || 0)
+        }, 0)
+        return {
+          teamPPG,
+          leagueAverage: 82.1,
+          overallGrade: 'N/A',
+          projectedRecord: 'N/A',
+          playoffOdds: 'N/A',
+          percentAboveAverage: 0,
+          positionalAdvantages: 'N/A',
+          starPlayers: 0,
+          benchDepth: 0,
+          weakestPosition: 'N/A',
+          tradeRecommendations: [],
+          improvementStrategy: 'Add at least 6 players to your roster to receive personalized trade recommendations.'
+        }
+      }
+
+      // Get player details for the roster
+      const rosterDetails = rosterPlayers.map(name => {
+        const player = dataset.players.find((p: any) => p.name === name)
+        if (!player) {
+          console.warn(`Player not found in dataset: ${name}`)
+        }
+        return player ? {
+          name: player.name,
+          position: player.position,
+          team: player.team,
+          adp: player.adp,
+          proj_ppg: player.proj_ppg
+        } : null
+      }).filter(Boolean)
+
+      console.log('Roster details:', rosterDetails)
+      console.log('Available players in dataset:', dataset.players.slice(0, 5).map(p => p.name))
+
+      // ADVANCED TEAM STRENGTH ANALYSIS
+      const teamPPG = rosterDetails.reduce((sum, player) => sum + (player!.proj_ppg || 0), 0)
+      
+      // Calculate realistic league average based on typical fantasy team
+      // Average team has: 1 QB (18 PPG) + 2 RB (10 PPG each) + 2 WR (8 PPG each) + 1 TE (6 PPG) + 1 FLEX (8 PPG) = 68 PPG
+      const leagueAverage = 68
+      const percentAboveAverage = teamPPG - leagueAverage
+      const percentAboveAveragePercent = ((teamPPG / leagueAverage) - 1) * 100
+
+      console.log('Team Analysis:', {
+        teamPPG,
+        leagueAverage,
+        percentAboveAverage,
+        percentAboveAveragePercent,
+        rosterDetails: rosterDetails.map(p => `${p!.name}: ${p!.proj_ppg} PPG`)
+      })
+
+      // REVAMPED GRADING SYSTEM - More realistic thresholds
+      let overallGrade = 'C'
+      let projectedRecord = '8-8'
+      let playoffOdds = '50%'
+      
+      if (percentAboveAveragePercent >= 25) { // 85+ PPG (25% above average)
+        overallGrade = 'A+'
+        projectedRecord = '14-2'
+        playoffOdds = '98%'
+      } else if (percentAboveAveragePercent >= 15) { // 78+ PPG (15% above average)
+        overallGrade = 'A'
+        projectedRecord = '13-3'
+        playoffOdds = '95%'
+      } else if (percentAboveAveragePercent >= 8) { // 73+ PPG (8% above average)
+        overallGrade = 'B+'
+        projectedRecord = '12-4'
+        playoffOdds = '85%'
+      } else if (percentAboveAveragePercent >= 0) { // 68+ PPG (at or above average)
+        overallGrade = 'B'
+        projectedRecord = '11-5'
+        playoffOdds = '75%'
+      } else if (percentAboveAveragePercent >= -8) { // 62+ PPG (8% below average)
+        overallGrade = 'C+'
+        projectedRecord = '10-6'
+        playoffOdds = '60%'
+      } else if (percentAboveAveragePercent >= -15) { // 58+ PPG (15% below average)
+        overallGrade = 'C'
+        projectedRecord = '9-7'
+        playoffOdds = '45%'
+      } else if (percentAboveAveragePercent >= -25) { // 51+ PPG (25% below average)
+        overallGrade = 'D'
+        projectedRecord = '7-9'
+        playoffOdds = '25%'
+      } else {
+        overallGrade = 'F'
+        projectedRecord = '5-11'
+        playoffOdds = '10%'
+      }
+
+      // Count positions
+      const positionCounts: { [key: string]: number } = {}
+      rosterDetails.forEach(player => {
+        positionCounts[player!.position] = (positionCounts[player!.position] || 0) + 1
+      })
+
+      // REVAMPED POSITIONAL ADVANTAGES - Quality-based scoring
+      const positionQuality = {
+        'QB': { min: 15, good: 18, elite: 22 },
+        'RB': { min: 8, good: 12, elite: 16 },
+        'WR': { min: 6, good: 10, elite: 14 },
+        'TE': { min: 4, good: 7, elite: 10 },
+        'K': { min: 6, good: 8, elite: 10 },
+        'DEF': { min: 6, good: 8, elite: 10 },
+        'DST': { min: 6, good: 8, elite: 10 }
+      }
+
+      let advantagesCount = 0
+      const maxAdvantages = 8 // More realistic max
+
+      // QB advantages
+      const qbsForAdvantages = rosterDetails.filter(p => p!.position === 'QB')
+      if (qbsForAdvantages.length >= 1) {
+        const qb1PPG = qbsForAdvantages[0]?.proj_ppg || 0
+        if (qb1PPG >= positionQuality.QB.elite) advantagesCount += 2 // Elite QB
+        else if (qb1PPG >= positionQuality.QB.good) advantagesCount += 1 // Good QB
+      }
+      if (qbsForAdvantages.length >= 2) advantagesCount += 1 // QB depth
+
+      // RB advantages
+      const rbsForAdvantages = rosterDetails.filter(p => p!.position === 'RB')
+      if (rbsForAdvantages.length >= 2) {
+        const rb1PPG = rbsForAdvantages[0]?.proj_ppg || 0
+        const rb2PPG = rbsForAdvantages[1]?.proj_ppg || 0
+        if (rb1PPG >= positionQuality.RB.elite) advantagesCount += 1 // Elite RB1
+        if (rb2PPG >= positionQuality.RB.good) advantagesCount += 1 // Good RB2
+      }
+      if (rbsForAdvantages.length >= 3) advantagesCount += 1 // RB depth
+
+      // WR advantages
+      const wrsForAdvantages = rosterDetails.filter(p => p!.position === 'WR')
+      if (wrsForAdvantages.length >= 2) {
+        const wr1PPG = wrsForAdvantages[0]?.proj_ppg || 0
+        const wr2PPG = wrsForAdvantages[1]?.proj_ppg || 0
+        if (wr1PPG >= positionQuality.WR.elite) advantagesCount += 1 // Elite WR1
+        if (wr2PPG >= positionQuality.WR.good) advantagesCount += 1 // Good WR2
+      }
+      if (wrsForAdvantages.length >= 3) advantagesCount += 1 // WR depth
+
+      // TE advantages
+      const tesForAdvantages = rosterDetails.filter(p => p!.position === 'TE')
+      if (tesForAdvantages.length >= 1) {
+        const te1PPG = tesForAdvantages[0]?.proj_ppg || 0
+        if (te1PPG >= positionQuality.TE.elite) advantagesCount += 2 // Elite TE
+        else if (te1PPG >= positionQuality.TE.good) advantagesCount += 1 // Good TE
+      }
+
+      advantagesCount = Math.min(advantagesCount, maxAdvantages)
+      const positionalAdvantages = `${advantagesCount}/${maxAdvantages}`
+
+      // REVAMPED STAR PLAYERS & BENCH DEPTH - More realistic thresholds
+      const starPlayers = rosterDetails.filter(p => {
+        const ppg = p!.proj_ppg || 0
+        const position = p!.position
+        const quality = positionQuality[position as keyof typeof positionQuality]
+        return quality && ppg >= quality.elite
+      }).length
+
+      const benchDepth = rosterDetails.filter(p => {
+        const ppg = p!.proj_ppg || 0
+        const position = p!.position
+        const quality = positionQuality[position as keyof typeof positionQuality]
+        return quality && ppg >= quality.good
+      }).length
+
+      // Generate trade recommendations based on actual roster
+      const qbCount = positionCounts['QB'] || 0
+      const rbCount = positionCounts['RB'] || 0
+      const wrCount = positionCounts['WR'] || 0
+      const teCount = positionCounts['TE'] || 0
+
+      // Find weakest position (considering position scarcity and production)
+      const positionPPG: { [key: string]: number } = {}
+      
+      rosterDetails.forEach(player => {
+        positionPPG[player!.position] = (positionPPG[player!.position] || 0) + player!.proj_ppg
+      })
+
+      // Calculate position strength (PPG per player at that position)
+      const positionStrength: { [key: string]: number } = {}
+      Object.entries(positionPPG).forEach(([pos, ppg]) => {
+        positionStrength[pos] = ppg / positionCounts[pos]
+      })
+
+      let weakestPosition = 'FLEX'
+      let lowestStrength = Infinity
+      Object.entries(positionStrength).forEach(([pos, strength]) => {
+        if (strength < lowestStrength) {
+          lowestStrength = strength
+          weakestPosition = pos
+        }
+      })
+
+      // Determine weakest position based on actual needs and production
+      if (teCount === 0) {
+        weakestPosition = 'TE'
+      } else if (rbCount < 2) {
+        weakestPosition = 'RB'
+      } else if (wrCount < 2) {
+        weakestPosition = 'WR'
+      } else if (qbCount < 1) {
+        weakestPosition = 'QB'
+      } else {
+        // If all positions are filled, find the weakest by production
+        const positionAverages = {
+          'QB': 18, 'RB': 10, 'WR': 8, 'TE': 6
+        }
+        
+        let lowestScore = Infinity
+        Object.entries(positionStrength).forEach(([pos, ppg]) => {
+          const avg = positionAverages[pos as keyof typeof positionAverages] || 10
+          const score = ppg / avg
+          if (score < lowestScore && ppg > 0) {
+            lowestScore = score
+            weakestPosition = pos
+          }
+        })
+      }
+
+      const qbs = rosterDetails.filter(p => p!.position === 'QB')
+      const rbs = rosterDetails.filter(p => p!.position === 'RB')
+      const wrs = rosterDetails.filter(p => p!.position === 'WR')
+      const tes = rosterDetails.filter(p => p!.position === 'TE')
+
+      const sortedQBs = qbs.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
+      const sortedRBs = rbs.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
+      const sortedWRs = wrs.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
+      const sortedTEs = tes.sort((a, b) => (b!.proj_ppg || 0) - (a!.proj_ppg || 0))
+
+      // Find trade targets from available players (excluding players already on roster)
+      const findTradeTargets = (position: string, minPPG: number) => {
+        const rosterPlayerNames = rosterDetails.map(p => p!.name.toLowerCase())
+        const targets = dataset.players
+          .filter((p: any) => 
+            p.position === position && 
+            p.proj_ppg >= minPPG &&
+            !rosterPlayerNames.includes(p.name.toLowerCase())
+          )
+          .sort((a: any, b: any) => b.proj_ppg - a.proj_ppg)
+          .slice(0, 3)
+          .map((p: any) => p.name)
+        
+        console.log(`Trade targets for ${position} (minPPG: ${minPPG}):`, targets)
+        return targets
+      }
+
+      let tradeRecommendations: string[] = []
+      let improvementStrategy = ''
+
+      // Analyze what positions you need vs what you have too much of
+      const needs = []
+      const excess = []
+
+      if (qbCount < 1) needs.push('QB')
+      if (rbCount < 2) needs.push('RB')
+      if (wrCount < 2) needs.push('WR')
+      if (teCount < 1) needs.push('TE')
+
+      if (rbCount > 3) excess.push('RB')
+      if (wrCount > 4) excess.push('WR')
+      if (qbCount > 2) excess.push('QB')
+      if (teCount > 2) excess.push('TE')
+
+      console.log('Team needs:', needs, 'Excess positions:', excess)
+
+      // ADVANCED MULTI-WEAKNESS TRADE STRATEGY
+      console.log('=== ADVANCED TRADE ANALYSIS ===')
+      console.log('Roster:', rosterDetails.map(p => `${p!.name} (${p!.position}) - ${p!.proj_ppg} PPG`))
+      console.log('Needs:', needs, 'Excess:', excess)
+      
+      // ANALYZE MULTIPLE TEAM WEAKNESSES
+      const teamWeaknesses = []
+      
+      // Weakness 1: Missing positions
+      if (teCount === 0) teamWeaknesses.push({ type: 'missing', position: 'TE', priority: 1 })
+      if (rbCount < 2) teamWeaknesses.push({ type: 'missing', position: 'RB', priority: 2 })
+      if (wrCount < 2) teamWeaknesses.push({ type: 'missing', position: 'WR', priority: 3 })
+      
+      // Weakness 2: Position depth issues
+      if (rbCount < 3) teamWeaknesses.push({ type: 'depth', position: 'RB', priority: 4 })
+      if (wrCount < 3) teamWeaknesses.push({ type: 'depth', position: 'WR', priority: 5 })
+      if (qbCount < 2) teamWeaknesses.push({ type: 'depth', position: 'QB', priority: 6 })
+      
+      // Weakness 3: Performance gaps
+      const allRosterPlayers = [...sortedQBs, ...sortedRBs, ...sortedWRs, ...sortedTEs]
+      const positionAverages = { 'QB': 18, 'RB': 10, 'WR': 8, 'TE': 6 }
+      
+      allRosterPlayers.forEach(player => {
+        const avg = positionAverages[player!.position as keyof typeof positionAverages] || 10
+        const performance = (player!.proj_ppg || 0) / avg
+        if (performance < 0.8) {
+          teamWeaknesses.push({ 
+            type: 'performance', 
+            position: player!.position, 
+            player: player!.name,
+            priority: 7 + (1 - performance) * 10 
+          })
+        }
+      })
+      
+      // Sort weaknesses by priority
+      teamWeaknesses.sort((a, b) => a.priority - b.priority)
+      console.log('Team Weaknesses:', teamWeaknesses)
+      
+      // PREMIUM TRADE RECOMMENDATIONS WITH KNOWN PLAYERS
+      tradeRecommendations = []
+      
+      // Known elite players for each position (fallbacks)
+      const elitePlayers = {
+        'QB': ['Josh Allen', 'Patrick Mahomes', 'Jalen Hurts', 'Lamar Jackson', 'Justin Herbert'],
+        'RB': ['Christian McCaffrey', 'Saquon Barkley', 'Derrick Henry', 'Austin Ekeler', 'Breece Hall', 'Jonathan Taylor'],
+        'WR': ['Tyreek Hill', 'Stefon Diggs', 'Davante Adams', 'CeeDee Lamb', 'A.J. Brown', 'Ja\'Marr Chase'],
+        'TE': ['Travis Kelce', 'Mark Andrews', 'George Kittle', 'T.J. Hockenson', 'Sam LaPorta']
+      }
+      
+      // Get known players from dataset that match elite criteria
+      const getKnownElitePlayers = (position: string, minPPG: number) => {
+        const rosterPlayerNames = rosterDetails.map(p => p!.name.toLowerCase())
+        const knownTargets = dataset.players
+          .filter((p: any) => 
+            p.position === position && 
+            p.proj_ppg >= minPPG &&
+            !rosterPlayerNames.includes(p.name.toLowerCase()) &&
+            elitePlayers[position as keyof typeof elitePlayers]?.includes(p.name)
+          )
+          .sort((a: any, b: any) => b.proj_ppg - a.proj_ppg)
+          .slice(0, 5) // Return more options to ensure distinct players
+          .map((p: any) => p.name)
+        
+        // Fallback to elite players list if no matches found
+        if (knownTargets.length === 0) {
+          return elitePlayers[position as keyof typeof elitePlayers]?.slice(0, 5) || []
+        }
+        
+        // Also include non-elite players from dataset if we need more options
+        const additionalTargets = dataset.players
+          .filter((p: any) => 
+            p.position === position && 
+            p.proj_ppg >= minPPG &&
+            !rosterPlayerNames.includes(p.name.toLowerCase()) &&
+            !knownTargets.includes(p.name)
+          )
+          .sort((a: any, b: any) => b.proj_ppg - a.proj_ppg)
+          .slice(0, 3)
+          .map((p: any) => p.name)
+        
+        return [...knownTargets, ...additionalTargets]
+      }
+      
+      // Generate diverse recommendations based on team needs
+      const recommendationTypes = ['position', 'upgrade', 'depth']
+      let usedTypes = new Set()
+      let usedTargetPlayers = new Set<string>() // Track which target players have been used
+      let usedTradePlayers = new Set<string>() // Track which roster players have been used in trades
+      
+      // Helper to get an unused target player
+      const getUnusedTarget = (targets: string[]): string | null => {
+        for (const target of targets) {
+          if (!usedTargetPlayers.has(target)) {
+            usedTargetPlayers.add(target)
+            return target
+          }
+        }
+        return null
+      }
+      
+      // Helper to get a tradeable player from roster (must actually exist and not be used yet)
+      const getTradeablePlayer = (preferredPositions: string[], excludeNames: string[] = []): string | null => {
+        // Combine excludeNames with usedTradePlayers
+        const allExcluded = [...excludeNames, ...Array.from(usedTradePlayers)]
+        
+        // Try preferred positions first
+        for (const pos of preferredPositions) {
+          const players = rosterDetails.filter(p => 
+            p!.position === pos && 
+            !allExcluded.includes(p!.name)
+          )
+          if (players.length > 0) {
+            // Return the lowest performing player at this position
+            const sorted = players.sort((a, b) => (a!.proj_ppg || 0) - (b!.proj_ppg || 0))
+            return sorted[0]!.name
+          }
+        }
+        // Fallback: any player not in exclude list
+        const available = rosterDetails.filter(p => !allExcluded.includes(p!.name))
+        if (available.length > 0) {
+          const sorted = available.sort((a, b) => (a!.proj_ppg || 0) - (b!.proj_ppg || 0))
+          return sorted[0]!.name
+        }
+        return null
+      }
+      
+      // Helper to mark a player as used in a trade
+      const markPlayerAsUsed = (playerName: string) => {
+        usedTradePlayers.add(playerName)
+      }
+      
+      // Recommendation 1: Critical Position Need (acquire via trade or free agency)
+      if (needs.length > 0) {
+        const need = needs[0]
+        const targets = getKnownElitePlayers(need, 8)
+        const targetPlayer = getUnusedTarget(targets)
+        
+        if (targetPlayer) {
+          // If we have excess at another position, suggest trading
+          if (excess.length > 0) {
+            const tradePlayer = getTradeablePlayer(excess)
+            if (tradePlayer) {
+              tradeRecommendations.push(
+                `Trade ${tradePlayer} for ${targetPlayer} to fill critical ${need} position gap`
+              )
+              markPlayerAsUsed(tradePlayer)
+              usedTypes.add('position')
+            } else {
+              // No tradeable players, suggest free agency
+              tradeRecommendations.push(
+                `Acquire ${targetPlayer} via free agency or trade to fill critical ${need} position gap`
+              )
+              usedTypes.add('position')
+            }
+          } else {
+            // No excess, suggest free agency or package trade
+            if (rosterDetails.length >= 2) {
+              const tradePlayer = getTradeablePlayer(['QB', 'RB', 'WR', 'TE'])
+              if (tradePlayer) {
+                // Try to find a second player for a package trade
+                const secondPlayer = getTradeablePlayer(['QB', 'RB', 'WR', 'TE'], [tradePlayer])
+                if (secondPlayer && rosterDetails.length >= 3) {
+                  tradeRecommendations.push(
+                    `Package ${tradePlayer} + ${secondPlayer} for ${targetPlayer} to fill critical ${need} position gap`
+                  )
+                  markPlayerAsUsed(tradePlayer)
+                  markPlayerAsUsed(secondPlayer)
+                } else {
+                  tradeRecommendations.push(
+                    `Trade ${tradePlayer} for ${targetPlayer} to fill critical ${need} position gap`
+                  )
+                  markPlayerAsUsed(tradePlayer)
+                }
+              } else {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via free agency to fill critical ${need} position gap`
+                )
+              }
+            } else {
+              tradeRecommendations.push(
+                `Acquire ${targetPlayer} via free agency to fill critical ${need} position gap`
+              )
+            }
+            usedTypes.add('position')
+          }
+        }
+      }
+      
+      // Recommendation 2: Roster Upgrade (only if player exists to upgrade)
+      if (teamWeaknesses.length > 0 && !usedTypes.has('upgrade')) {
+        const weakness = teamWeaknesses[0]
+        if (weakness.type === 'performance' && weakness.player) {
+          const targets = getKnownElitePlayers(weakness.position, 10)
+          const targetPlayer = getUnusedTarget(targets)
+          if (targetPlayer && !usedTradePlayers.has(weakness.player)) {
+            tradeRecommendations.push(
+              `Upgrade ${weakness.player} for ${targetPlayer} to improve ${weakness.position} production`
+            )
+            markPlayerAsUsed(weakness.player)
+            usedTypes.add('upgrade')
+          }
+        } else if (weakness.type === 'missing' && rosterDetails.length > 0) {
+          // Missing position - suggest acquiring
+          const targets = getKnownElitePlayers(weakness.position, 8)
+          const targetPlayer = getUnusedTarget(targets)
+          if (targetPlayer) {
+            const tradePlayer = getTradeablePlayer(['QB', 'RB', 'WR', 'TE'])
+            if (tradePlayer && rosterDetails.length > 1) {
+              tradeRecommendations.push(
+                `Trade ${tradePlayer} for ${targetPlayer} to address missing ${weakness.position} position`
+              )
+              markPlayerAsUsed(tradePlayer)
+            } else {
+              tradeRecommendations.push(
+                `Acquire ${targetPlayer} via free agency to address missing ${weakness.position} position`
+              )
+            }
+            usedTypes.add('upgrade')
+          }
+        }
+      }
+      
+      // Recommendation 3: Depth Improvement (only if we have players to trade)
+      if (!usedTypes.has('depth')) {
+        const depthNeeds = []
+        if (rbCount < 3 && rbCount > 0) depthNeeds.push('RB') // Only if we have at least 1 RB
+        if (wrCount < 3 && wrCount > 0) depthNeeds.push('WR') // Only if we have at least 1 WR
+        if (qbCount < 2 && qbCount > 0) depthNeeds.push('QB') // Only if we have at least 1 QB
+        
+        if (depthNeeds.length > 0 && rosterDetails.length > 1) {
+          const depthPosition = depthNeeds[0]
+          const targets = getKnownElitePlayers(depthPosition, 7)
+          const targetPlayer = getUnusedTarget(targets)
+          
+          if (targetPlayer) {
+            // Find a player from a different position to trade
+            const otherPositions = ['QB', 'RB', 'WR', 'TE'].filter(p => p !== depthPosition)
+            const tradePlayer = getTradeablePlayer(otherPositions)
+            if (tradePlayer) {
+              tradeRecommendations.push(
+                `Acquire ${targetPlayer} via trade for ${tradePlayer} to improve ${depthPosition} depth`
+              )
+              markPlayerAsUsed(tradePlayer)
+              usedTypes.add('depth')
+            }
+          }
+        } else if (depthNeeds.length > 0 && rosterDetails.length <= 1) {
+          // Very small roster - suggest free agency
+          const depthPosition = depthNeeds[0]
+          const targets = getKnownElitePlayers(depthPosition, 7)
+          const targetPlayer = getUnusedTarget(targets)
+          if (targetPlayer) {
+            tradeRecommendations.push(
+              `Acquire ${targetPlayer} via free agency to improve ${depthPosition} depth`
+            )
+            usedTypes.add('depth')
+          }
+        }
+      }
+      
+      // Strategic recommendations for strong teams (only if we have enough players)
+      if (tradeRecommendations.length < 3 && rosterDetails.length >= 2) {
+        if (overallGrade === 'A' || overallGrade === 'A+') {
+          // Championship team - suggest elite upgrades
+          if (!usedTypes.has('upgrade')) {
+            const eliteTargets = getKnownElitePlayers('TE', 10)
+            const targetPlayer = getUnusedTarget(eliteTargets)
+            if (targetPlayer) {
+              const tradePlayer = getTradeablePlayer(['RB', 'WR'])
+              if (tradePlayer) {
+                tradeRecommendations.push(
+                  `Trade ${tradePlayer} for ${targetPlayer} to gain championship-level TE advantage`
+                )
+                markPlayerAsUsed(tradePlayer)
+              }
+            }
+          }
+          
+          if (tradeRecommendations.length < 3) {
+            const rbTargets = getKnownElitePlayers('RB', 12)
+            const targetPlayer = getUnusedTarget(rbTargets)
+            if (targetPlayer && rosterDetails.length >= 3) {
+              const firstPlayer = getTradeablePlayer(['WR'])
+              if (firstPlayer) {
+                const secondPlayer = getTradeablePlayer(['RB'], [firstPlayer])
+                if (secondPlayer) {
+                  tradeRecommendations.push(
+                    `Package ${firstPlayer} + ${secondPlayer} for ${targetPlayer} to solidify championship roster`
+                  )
+                  markPlayerAsUsed(firstPlayer)
+                  markPlayerAsUsed(secondPlayer)
+                } else {
+                  tradeRecommendations.push(
+                    `Trade ${firstPlayer} for ${targetPlayer} to upgrade RB corps`
+                  )
+                  markPlayerAsUsed(firstPlayer)
+                }
+              } else {
+                const tradePlayer = getTradeablePlayer(['RB', 'WR', 'QB'])
+                if (tradePlayer) {
+                  tradeRecommendations.push(
+                    `Trade ${tradePlayer} for ${targetPlayer} to upgrade RB corps`
+                  )
+                  markPlayerAsUsed(tradePlayer)
+                }
+              }
+            }
+          }
+        } else {
+          // Building team - suggest foundational moves
+          if (!usedTypes.has('position') && teCount === 0) {
+            const teTargets = getKnownElitePlayers('TE', 6)
+            const targetPlayer = getUnusedTarget(teTargets)
+            if (targetPlayer) {
+              const tradePlayer = getTradeablePlayer(['RB', 'WR', 'QB'])
+              if (tradePlayer) {
+                tradeRecommendations.push(
+                  `Trade ${tradePlayer} for ${targetPlayer} to complete your starting lineup`
+                )
+                markPlayerAsUsed(tradePlayer)
+              } else {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via free agency to complete your starting lineup`
+                )
+              }
+            }
+          }
+          
+          if (tradeRecommendations.length < 3) {
+            const wrTargets = getKnownElitePlayers('WR', 8)
+            const targetPlayer = getUnusedTarget(wrTargets)
+            if (targetPlayer) {
+              const tradePlayer = getTradeablePlayer(['RB', 'QB'])
+              if (tradePlayer) {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via trade for ${tradePlayer} to improve WR depth`
+                )
+                markPlayerAsUsed(tradePlayer)
+              } else {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via free agency to improve WR depth`
+                )
+              }
+            }
+          }
+        }
+      }
+      
+      // Fill remaining recommendations with logical suggestions
+      while (tradeRecommendations.length < 3) {
+        // Find the most critical need
+        const criticalNeeds = []
+        if (teCount === 0) criticalNeeds.push({ pos: 'TE', priority: 1 })
+        if (rbCount < 2) criticalNeeds.push({ pos: 'RB', priority: 2 })
+        if (wrCount < 2) criticalNeeds.push({ pos: 'WR', priority: 3 })
+        if (qbCount < 1) criticalNeeds.push({ pos: 'QB', priority: 4 })
+        
+        if (criticalNeeds.length > 0) {
+          const need = criticalNeeds[0]
+          const targets = getKnownElitePlayers(need.pos, 8)
+          const targetPlayer = getUnusedTarget(targets)
+          if (targetPlayer) {
+            if (rosterDetails.length > 0) {
+              const tradePlayer = getTradeablePlayer(['QB', 'RB', 'WR', 'TE'])
+              if (tradePlayer && rosterDetails.length > 1) {
+                tradeRecommendations.push(
+                  `Trade ${tradePlayer} for ${targetPlayer} to address ${need.pos} position need`
+                )
+                markPlayerAsUsed(tradePlayer)
+              } else {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via free agency to address ${need.pos} position need`
+                )
+              }
+            } else {
+              tradeRecommendations.push(
+                `Acquire ${targetPlayer} via free agency to build your ${need.pos} position`
+              )
+            }
+          }
+        } else {
+          // No critical needs - suggest depth or upgrades
+          const depthOptions = []
+          if (rbCount < 3) depthOptions.push('RB')
+          if (wrCount < 3) depthOptions.push('WR')
+          if (qbCount < 2) depthOptions.push('QB')
+          
+          if (depthOptions.length > 0 && rosterDetails.length > 0) {
+            const depthPos = depthOptions[0]
+            const targets = getKnownElitePlayers(depthPos, 7)
+            const targetPlayer = getUnusedTarget(targets)
+            if (targetPlayer) {
+              const otherPositions = ['QB', 'RB', 'WR', 'TE'].filter(p => p !== depthPos)
+              const tradePlayer = getTradeablePlayer(otherPositions)
+              if (tradePlayer && rosterDetails.length > 1) {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via trade for ${tradePlayer} to improve ${depthPos} depth`
+                )
+                markPlayerAsUsed(tradePlayer)
+              } else {
+                tradeRecommendations.push(
+                  `Acquire ${targetPlayer} via free agency to improve ${depthPos} depth`
+                )
+              }
+            }
+          } else {
+            // No more logical recommendations - break to avoid infinite loop
+            break
+          }
+        }
+        
+        // Safety check to prevent infinite loop
+        if (tradeRecommendations.length >= 3) break
+      }
+
+      improvementStrategy = needs.length > 0 
+        ? `🔥 CHAMPIONSHIP STRATEGY: Prioritize ${needs.join(', ')} positions immediately. ${excess.length > 0 ? `Trade excess ${excess.join(', ')} for elite ${needs[0]} upgrades.` : `Aggressively acquire ${needs[0]} via trades or free agency.`} Focus on playoff-winning moves, not just depth.`
+        : '⚡ ELITE UPGRADE STRATEGY: Your roster is balanced but needs championship-level upgrades. Target undervalued stars and position-specific advantages. Every move should improve your playoff odds significantly.'
+      
+      console.log('Generated trade recommendations:', tradeRecommendations)
+
+      return {
+        teamPPG,
+        leagueAverage,
+        overallGrade,
+        projectedRecord,
+        playoffOdds,
+        percentAboveAverage,
+        positionalAdvantages,
+        starPlayers,
+        benchDepth,
+        weakestPosition,
+        tradeRecommendations,
+        improvementStrategy
+      }
     }
 
-    const displayAnalysis = teamAnalysis || fallbackAnalysis
+    const dynamicAnalysis = calculateDynamicMetrics()
+    // Use dynamic analysis as base, merge with API insights if available
+    const displayAnalysis = teamAnalysis ? {
+      ...dynamicAnalysis,
+      // Only use API insights for additional analysis, keep dynamic trade recommendations
+      teamStrengths: teamAnalysis.teamStrengths || [],
+      teamWeaknesses: teamAnalysis.teamWeaknesses || [],
+      improvementStrategy: teamAnalysis.improvementStrategy || dynamicAnalysis.improvementStrategy
+    } : dynamicAnalysis
     const isLoading = loadingTeamAnalysis && !teamAnalysis
 
     console.log('TeamSummary render:', { teamAnalysis, displayAnalysis, isLoading })
@@ -1622,51 +2329,68 @@ export default function Page() {
                 }}>{displayAnalysis.weakestPosition}</span>
               </div>
               
-              <div style={{ color: '#d1d5db', marginBottom: '24px', fontSize: '18px', fontWeight: 500 }}>
-                Consider these upgrades at the same position:
-              </div>
-              
-              <div style={{ marginBottom: '24px' }}>
-                {displayAnalysis.tradeRecommendations.map((rec: string, index: number) => (
-                  <div key={index} style={{
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    padding: '16px',
-                    borderRadius: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-                    transition: 'all 0.3s ease',
-                    marginBottom: '16px',
-                    cursor: 'pointer'
-                  }} onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'scale(1.05)'
-                    e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.25)'
-                  }} onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'scale(1)'
-                    e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <span style={{ color: '#fb923c', fontSize: '18px', marginTop: '4px' }}>•</span>
-                      <span style={{ color: '#d1d5db', fontSize: '16px', lineHeight: '1.6' }}>{rec}</span>
-                    </div>
+              {displayAnalysis.tradeRecommendations.length > 0 ? (
+                <>
+                  <div style={{ color: '#d1d5db', marginBottom: '24px', fontSize: '18px', fontWeight: 500 }}>
+                    Consider these upgrades for your team:
                   </div>
-                ))}
-              </div>
-              
-              <div style={{
-                background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.4) 0%, rgba(251, 191, 36, 0.3) 100%)',
-                padding: '24px',
-                borderRadius: '16px',
-                border: '2px solid rgba(251, 146, 60, 0.5)',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  <span style={{ color: '#fb923c', fontSize: '20px' }}>💡</span>
-                  <span style={{ color: 'white', fontWeight: 900, fontSize: '18px' }}>Pro Tip:</span>
+                  
+                  <div style={{ marginBottom: '24px' }}>
+                    {displayAnalysis.tradeRecommendations.map((rec: string, index: number) => (
+                      <div key={index} style={{
+                        background: 'rgba(255, 255, 255, 0.1)',
+                        padding: '16px',
+                        borderRadius: '12px',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                        transition: 'all 0.3s ease',
+                        marginBottom: '16px',
+                        cursor: 'pointer'
+                      }} onMouseEnter={(e) => {
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                        e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.25)'
+                      }} onMouseLeave={(e) => {
+                        e.currentTarget.style.transform = 'scale(1)'
+                        e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                          <span style={{ color: '#fb923c', fontSize: '18px', marginTop: '4px' }}>•</span>
+                          <span style={{ color: '#d1d5db', fontSize: '16px', lineHeight: '1.6' }}>{rec}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <div style={{
+                    background: 'linear-gradient(90deg, rgba(251, 146, 60, 0.4) 0%, rgba(251, 191, 36, 0.3) 100%)',
+                    padding: '24px',
+                    borderRadius: '16px',
+                    border: '2px solid rgba(251, 146, 60, 0.5)',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <span style={{ color: '#fb923c', fontSize: '20px' }}>💡</span>
+                      <span style={{ color: 'white', fontWeight: 900, fontSize: '18px' }}>Pro Tip:</span>
+                    </div>
+                    <span style={{ color: '#d1d5db', fontSize: '16px', lineHeight: '1.6', fontWeight: 500 }}>
+                      {displayAnalysis.improvementStrategy}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  padding: '24px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  textAlign: 'center',
+                  marginBottom: '24px'
+                }}>
+                  <span style={{ color: '#9ca3af', fontSize: '16px', lineHeight: '1.6' }}>
+                    Please add at least 6 players to your roster to receive personalized trade recommendations.
+                  </span>
                 </div>
-                <span style={{ color: '#d1d5db', fontSize: '16px', lineHeight: '1.6', fontWeight: 500 }}>
-                  {displayAnalysis.improvementStrategy}
-                </span>
-              </div>
+              )}
             </div>
           </div>
         </div>
